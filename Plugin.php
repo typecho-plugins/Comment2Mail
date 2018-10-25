@@ -9,12 +9,10 @@
  * @link http://www.hoehub.com
  */
 
-//require './PHPMailer/src/Exception.php';
 require dirname(__FILE__) . '/PHPMailer/src/PHPMailer.php';
 require dirname(__FILE__) . '/PHPMailer/src/SMTP.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
 
 class Comment2Mail_Plugin implements Typecho_Plugin_Interface
 {
@@ -31,22 +29,39 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
         return _t('请配置邮箱SMTP选项!');
     }
 
-    public function event($comment)
+    /**
+     * @param Widget_Comments_Edit|Widget_Feedback $comment
+     * @throws Exception
+     * @throws Typecho_Db_Exception
+     * 评论/回复时的回调事件
+     */
+    public static function event($comment)
     {
-        // TODO 发件人和收件人不能错
-        // 回复评论
-        if (0 < $comment->parent) {
-            $widget = new Widget_Abstract_Comments(new Typecho_Request(), new Typecho_Response(), NULL);
+        $recipients = [];
+        if (0 < $comment->parent) { // 发信给上级评论人&博主
             $db = Typecho_Db::get();
+            $widget = new Widget_Abstract_Comments(new Typecho_Request(), new Typecho_Response(), NULL);
             // 查询
             $select = $widget->select()->where('coid' . ' = ?', $comment->parent)->limit(1);
             $parent = $db->fetchRow($select, [$widget, 'push']); // 获取上级评论对象
-            self::sendMail($comment, $parent->mail); // 收件人为上级评论者
-        } else { // 普通评论
-            self::sendMail($comment); // 收件人为博主
+            if ($parent) {
+                $parentAuthor = [
+                    'name' => $parent['author'],
+                    'mail' => $parent['mail'],
+                ];
+                $recipients[] = $parentAuthor;
+            }
         }
+        self::sendMail($comment, $recipients);
     }
-    public static function sendMail($comment, $recipient = null)
+
+    /**
+     * @param Widget_Comments_Edit|Widget_Feedback $comment
+     * @param array $recipients
+     * @throws Exception
+     * 发信方法
+     */
+    public static function sendMail($comment, $recipients)
     {
         try {
             $mail = new PHPMailer(true);
@@ -65,30 +80,34 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
 
             //Recipients
             $mail->setFrom($comment2Mail->from, $comment2Mail->fromName);
-            if (empty($recipient)) $recipient = $comment->mail;
-            $name = $comment->author;
-            $mail->addAddress($recipient, $name); // Add a recipient
 
-            $content = $comment->text; // 评论内容
-            //Content
+            // 给博主发信
+            $recipients[] = [
+                'name' => $comment2Mail->fromName,
+                'mail' => $comment2Mail->from,
+            ];
+            foreach ($recipients as $value) {
+                $mail->addAddress($value['mail'], $value['name']); // Add a recipient
+            }
+            $mail->Subject = '来自[' . $options->title . ']站点 的新消息';
+
             $mail->isHTML(); // Set email format to HTML
-            $mail->Subject = $name . '发来的邮件';
-            $mail->Body    = $content;
+            //Content
+            $content  = '评论人: ' . $comment->author; // 评论人
+            $content .= '评论内容: ' . $comment->text; // 评论内容
+            $mail->Body = $content;
+            $mail->send();
 
-//            $mail->send();
             // 记录日志
-            if ($comment2Mail->log) {
-                if ($mail->isError()) {
-                    file_put_contents(dirname(__FILE__) . '/log.txt', $mail->ErrorInfo, FILE_APPEND);
-
-                }
-                file_put_contents(dirname(__FILE__) . '/log.txt', $comment2Mail, FILE_APPEND);
-                file_put_contents(dirname(__FILE__) . '/log.txt', json_encode($comment), FILE_APPEND);
-                file_put_contents(dirname(__FILE__) . '/log.txt', "\n ok ", FILE_APPEND);
+            if ($comment2Mail->log && $mail->isError()) {
+                $fileName = dirname(__FILE__) . '/log.txt';
+                $data = $mail->ErrorInfo;
+                file_put_contents($fileName, $data, FILE_APPEND);
             }
 
         } catch (Typecho_Plugin_Exception $e) {
-            file_put_contents(dirname(__FILE__) . '/log.txt', $e, FILE_APPEND);
+            $fileName = dirname(__FILE__) . '/log.txt';
+            file_put_contents($fileName, $e, FILE_APPEND);
         }
     }
 
@@ -101,9 +120,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
      */
     public static function deactivate()
     {
-        $at = date('Y-m-d H:i:s');
-        $str = $at . ' 禁用了 ' . __CLASS__ . "\n";
-        file_put_contents(dirname(__FILE__) . '/log.txt', $str, FILE_APPEND);
+        
     }
 
     /**
