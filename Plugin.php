@@ -199,7 +199,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
             foreach ($recipients as $recipient) {
                 $mail->addAddress($recipient['mail'], $recipient['name']); // 发件人
             }
-            $mail->Subject = '来自[' . $options->title . ']站点 的新消息';
+            $mail->Subject = '来自[' . $options->title . ']站点的新消息';
 
             $mail->isHTML(); // 邮件为HTML格式
             // 邮件内容
@@ -214,8 +214,8 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
                 } else { // 记录发信成功的日志
                     $recipientNames = $recipientMails = '';
                     foreach ($recipients as $recipient) {
-                        $recipientNames .= $recipient['name'] . ' ';
-                        $recipientMails .= $recipient['mail'] . ' ';
+                        $recipientNames .= $recipient['name'] . ', ';
+                        $recipientMails .= $recipient['mail'] . ', ';
                     }
                     $at    = date('Y-m-d H:i:s');
                     $data  = PHP_EOL . $at .' 发送成功! ';
