@@ -1,23 +1,21 @@
 # typecho-Comment2Mail
 
 #### 项目介绍
-全新Typecho博客系统评论邮件提醒插件
+Typecho博客评论通过时发送邮件提醒
 
 #### 软件架构
-软件架构说明
+- `typecho`版本为`0.8 (10.8.15)`以上
+- `php: >=5.5.0`
+- 如果启用SMTP加密模式`PHP`需要打开`openssl`扩展
+- 邮件服务基于[`PHPMailer`](https://github.com/PHPMailer/PHPMailer/ )
 
 
 #### 安装教程
 
-1. xxxx
-2. xxxx
-3. xxxx
-
-#### 使用说明
-
-1. xxxx
-2. xxxx
-3. xxxx
+- 下载本插件，解压放到`/usr/plugins/`目录中
+- 文件夹名改为`Comment2Mail`
+- 登录管理后台，激活插件
+- 配置插件 填写STMP参数
 
 #### 参与贡献
 
@@ -26,12 +24,7 @@
 3. 提交代码
 4. 新建 Pull Request
 
+#### 联系作者
 
-#### 码云特技
-
-1. 使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2. 码云官方博客 [blog.gitee.com](https://blog.gitee.com)
-3. 你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解码云上的优秀开源项目
-4. [GVP](https://gitee.com/gvp) 全称是码云最有价值开源项目，是码云综合评定出的优秀开源项目
-5. 码云官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6. 码云封面人物是一档用来展示码云会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+- Email:i@hoehub.com
+- 欢迎访问 [www.hoehub.com](www.hoehub.com) 一起学习讨论
