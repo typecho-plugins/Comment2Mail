@@ -1,8 +1,7 @@
 <?php
 
 /**
- * typecho 评论通过时发送邮件提醒 SMTP邮件服务
- * 兼容PHP 5.5及更高版本
+ * typecho 评论通过时发送邮件提醒
  * @package Comment2Mail
  * @author Hoe
  * @version 1.0.0
@@ -78,7 +77,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
         $form->addInput($SMTPSecure);
 
         // SMTP server port
-        $smtpPort = new Typecho_Widget_Helper_Form_Element_Text('smtpPort', NULL, '25', _t('SMTP服务端口'), _t('默认25 ssl为465'));
+        $smtpPort = new Typecho_Widget_Helper_Form_Element_Text('smtpPort', NULL, '25', _t('SMTP服务端口'), _t('默认25 SSL为465 TLS为587'));
         $form->addInput($smtpPort);
 
         $layout = new Typecho_Widget_Helper_Layout();
@@ -154,7 +153,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
             // 查询
             $select = $widget->select()->where('coid' . ' = ?', $comment->parent)->limit(1);
             $parent = $db->fetchRow($select, [$widget, 'push']); // 获取上级评论对象
-            if ($parent) {
+            if ($parent && $parent['mail']) {
                 $parentAuthor = [
                     'name' => $parent['author'],
                     'mail' => $parent['mail'],
@@ -218,8 +217,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
                         $recipientNames .= $recipient['name'] . ' ';
                         $recipientMails .= $recipient['mail'] . ' ';
                     }
-                    $at = new Typecho_Date();
-                    $at = $at->format('Y-m-d H:i:s');
+                    $at    = date('Y-m-d H:i:s');
                     $data  = PHP_EOL . $at .' 发送成功! ';
                     $data .= ' 发件人:'   . $fromName;
                     $data .= ' 发件邮箱:' . $from;
