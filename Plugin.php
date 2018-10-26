@@ -1,7 +1,7 @@
 <?php
 
 /**
- * typecho 评论邮件提醒 SMTP邮件服务
+ * typecho 评论通过时发送邮件提醒 SMTP邮件服务
  * 兼容PHP 5.5及更高版本
  * @package Comment2Mail
  * @author Hoe
@@ -26,8 +26,9 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
      */
     public static function activate()
     {
-        Typecho_Plugin::factory('Widget_Feedback')->finishComment = [__CLASS__, 'event'];
-        Typecho_Plugin::factory('Widget_Comments_Edit')->finishComment = [__CLASS__, 'event'];
+        Typecho_Plugin::factory('Widget_Feedback')->finishComment = [__CLASS__, 'finishComment']; // 前台提交评论完成接口
+        Typecho_Plugin::factory('Widget_Comments_Edit')->finishComment = [__CLASS__, 'finishComment']; // 后台操作评论完成接口
+        Typecho_Plugin::factory('Widget_Comments_Edit')->mark = [__CLASS__, 'mark']; // 后台标记评论状态完成接口
         return _t('请配置邮箱SMTP选项!');
     }
 
@@ -60,7 +61,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
         $layout->html(_t('<h3>邮件服务配置:</h3>'));
         $form->addItem($layout);
 
-        // smtp服务
+        // SMTP服务地址
         $STMPHost = new Typecho_Widget_Helper_Form_Element_Text('STMPHost', NULL, 'smtp.qq.com', _t('SMTP服务器地址'), _t('如:smtp.163.com,smtp.gmail.com,smtp.exmail.qq.com,smtp.sohu.com,smtp.sina.com'));
         $form->addInput($STMPHost->addRule('required', _t('SMTP服务器地址必填!')));
 
@@ -113,14 +114,38 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
     {
     }
 
+    /**
+     * @param $comment
+     * @param Widget_Comments_Edit $edit
+     * @param $status
+     * @throws Typecho_Db_Exception
+     * @throws Typecho_Plugin_Exception
+     * 在后台标记评论状态时的回调
+     */
+    public static function mark($comment, $edit, $status)
+    {
+        $status == 'approved' && self::beforeSendMail($edit);
+    }
+
 
     /**
      * @param Widget_Comments_Edit|Widget_Feedback $comment
      * @throws Typecho_Db_Exception
      * @throws Typecho_Plugin_Exception
-     * 评论/回复时的回调事件
+     * 评论/回复时的回调
      */
-    public static function event($comment)
+    public static function finishComment($comment)
+    {
+        $comment->status == 'approved' && self::beforeSendMail($comment);
+    }
+
+    /**
+     * @param $comment
+     * @throws Typecho_Db_Exception
+     * @throws Typecho_Plugin_Exception
+     * 发邮件前的一些操作
+     */
+    private static function beforeSendMail($comment)
     {
         $recipients = [];
         if (0 < $comment->parent) {
@@ -156,14 +181,13 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
             $comment2Mail = $options->plugin('Comment2Mail');
             //Server settings
             $mail->isSMTP();
-            $mail->Host = $comment2Mail->STMPHost; // Specify main and backup SMTP servers
-            $mail->SMTPAuth = true; // Enable SMTP authentication
-            $mail->Username = $comment2Mail->smtpUserName; // SMTP username
-            $mail->Password = $comment2Mail->smtpPassword;//'ahvdpvicgomqbahe'; // SMTP password
-            $mail->SMTPSecure = $comment2Mail->SMTPSecure; // Options: '', 'ssl' or 'tls'. Enable TLS encryption, `ssl` also accepted
-            $mail->Port = $comment2Mail->smtpPort; // TCP port to connect to
+            $mail->Host = $comment2Mail->STMPHost; // SMTP 服务地址
+            $mail->SMTPAuth = true; // 开启认证
+            $mail->Username = $comment2Mail->smtpUserName; // SMTP 用户名
+            $mail->Password = $comment2Mail->smtpPassword; // SMTP 密码
+            $mail->SMTPSecure = $comment2Mail->SMTPSecure; // SMTP 加密类型 'ssl' or 'tls'.
+            $mail->Port = $comment2Mail->smtpPort; // SMTP 端口
 
-            //Recipients
             $from = $comment2Mail->from; // 发件邮箱
             $fromName = $comment2Mail->fromName; // 发件人
             $mail->setFrom($from, $fromName);
@@ -178,7 +202,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
             }
             $mail->Subject = '来自[' . $options->title . ']站点 的新消息';
 
-            $mail->isHTML(); // Set email format to HTML
+            $mail->isHTML(); // 邮件为HTML格式
             // 邮件内容
             $content = self::mailBody($comment);
             $mail->Body = $content;
@@ -194,11 +218,13 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
                         $recipientNames .= $recipient['name'] . ' ';
                         $recipientMails .= $recipient['mail'] . ' ';
                     }
-                    $data  = '发送成功! ';
-                    $data .= '发件人:'    . $fromName;
-                    $data .= '发件邮箱: ' . $from;
-                    $data .= '接收人: '   . $recipientNames;
-                    $data .= '接收邮箱: ' . $recipientMails;
+                    $at = new Typecho_Date();
+                    $at = $at->format('Y-m-d H:i:s');
+                    $data  = PHP_EOL . $at .' 发送成功! ';
+                    $data .= ' 发件人:'   . $fromName;
+                    $data .= ' 发件邮箱:' . $from;
+                    $data .= ' 接收人:'   . $recipientNames;
+                    $data .= ' 接收邮箱:' . $recipientMails . PHP_EOL;
                 }
                 $fileName = dirname(__FILE__) . '/log.txt';
                 file_put_contents($fileName, $data, FILE_APPEND);
@@ -217,9 +243,12 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
      */
     private static function mailBody($comment)
     {
-        $content = '<h3>评论人: ' . $comment->author . '</h3>'; // 评论人
-        $content .= '<p>评论内容: ' . $comment->text . '</p>'; // 评论内容
-        $content .= '<p>评论地址: ' . $comment->permalink . '</p>'; // 评论内容
+        $content   = '<h3>评论人: ' . $comment->author . '</h3>';
+        $content  .= '<p>评论内容: ' . $comment->text . '</p>';
+        $content  .= '<p>评论地址: ' . $comment->permalink . '</p>';
+        $commentAt = new Typecho_Date($comment->created);
+        $commentAt = $commentAt->format('Y-m-d H:i:s');
+        $content  .= '<p>评论时间: ' . $commentAt . '</p>';
         return $content;
     }
 
