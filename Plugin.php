@@ -40,7 +40,6 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
      */
     public static function deactivate()
     {
-        
     }
 
     /**
@@ -73,8 +72,8 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
         $form->addInput($smtpPassword->addRule('required', _t('SMTP登录密码必填!')));
 
         // 服务器安全模式
-        $SMTPSecure = new Typecho_Widget_Helper_Form_Element_Radio('SMTPSecure', array('' => _t('无安全加密'), 'ssl' => _t('SSL加密'), 'tls' => _t('TLS加密')), 'none', _t('SMTP加密模式'));
-        $form->addInput($SMTPSecure);
+        $smtpSecure = new Typecho_Widget_Helper_Form_Element_Radio('smtpSecure', array('' => _t('无安全加密'), 'ssl' => _t('SSL加密'), 'tls' => _t('TLS加密')), 'none', _t('SMTP加密模式'));
+        $form->addInput($smtpSecure);
 
         // SMTP server port
         $smtpPort = new Typecho_Widget_Helper_Form_Element_Text('smtpPort', NULL, '25', _t('SMTP服务端口'), _t('默认25 SSL为465 TLS为587'));
@@ -173,29 +172,33 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
     private static function sendMail($comment, $recipients)
     {
         try {
-            $mail = new PHPMailer(true);
             // 获取系统配置选项
             $options = Helper::options();
             // 获取插件配置
             $comment2Mail = $options->plugin('Comment2Mail');
+            $from = $comment2Mail->from; // 发件邮箱
+            $fromName = $comment2Mail->fromName; // 发件人
+            // 不需要给自己发信
+            if ($comment->authorId != $comment->ownerId && $comment->mail != $comment2Mail->from) {
+                $recipients[] = [
+                    'name' => $fromName,
+                    'mail' => $from,
+                ];
+            }
+            if (empty($recipients)) return; // 没有收信人
             //Server settings
+            $mail = new PHPMailer(true);
             $mail->isSMTP();
             $mail->Host = $comment2Mail->STMPHost; // SMTP 服务地址
             $mail->SMTPAuth = true; // 开启认证
             $mail->Username = $comment2Mail->smtpUserName; // SMTP 用户名
             $mail->Password = $comment2Mail->smtpPassword; // SMTP 密码
-            $mail->SMTPSecure = $comment2Mail->SMTPSecure; // SMTP 加密类型 'ssl' or 'tls'.
+            $mail->SMTPSecure = $comment2Mail->smtpSecure; // SMTP 加密类型 'ssl' or 'tls'.
             $mail->Port = $comment2Mail->smtpPort; // SMTP 端口
 
             $from = $comment2Mail->from; // 发件邮箱
             $fromName = $comment2Mail->fromName; // 发件人
             $mail->setFrom($from, $fromName);
-
-            // 给博主发信
-            $recipients[] = [
-                'name' => $fromName,
-                'mail' => $from,
-            ];
             foreach ($recipients as $recipient) {
                 $mail->addAddress($recipient['mail'], $recipient['name']); // 发件人
             }
