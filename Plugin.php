@@ -4,8 +4,10 @@
  * typecho 评论通过时发送邮件提醒
  * @package Comment2Mail
  * @author Hoe
- * @version 1.0.0
+ * @version 1.1.0
  * @link http://www.hoehub.com
+ * version 1.0.1 博主回复别人时,不需要给博主发信
+ * version 1.1.0 修改了邮件样式,邮件样式是utf8,避免邮件乱码
  */
 
 require dirname(__FILE__) . '/PHPMailer/src/PHPMailer.php';
@@ -206,7 +208,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
 
             $mail->isHTML(); // 邮件为HTML格式
             // 邮件内容
-            $content = self::mailBody($comment);
+            $content = self::mailBody($comment, $options);
             $mail->Body = $content;
             $mail->send();
 
@@ -239,17 +241,49 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
 
     /**
      * @param $comment
+     * @param $options
      * @return string
      * 很朴素的邮件风格
      */
-    private static function mailBody($comment)
+    private static function mailBody($comment, $options)
     {
-        $content   = '<h3>评论人: ' . $comment->author . '</h3>';
-        $content  .= '<p>评论内容: ' . $comment->text . '</p>';
-        $content  .= '<p>评论地址: ' . $comment->permalink . '</p>';
         $commentAt = new Typecho_Date($comment->created);
         $commentAt = $commentAt->format('Y-m-d H:i:s');
-        $content  .= '<p>评论时间: ' . $commentAt . '</p>';
+        $content = <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+</head>
+<body style="width:100%;height:800px;background-color:#EEF3FA; font-size:14px;font-family:Microsoft YaHei;">
+    <div style="margin:100px auto;background-color:#fff;  width:866px; border:1px solid #F1F0F0;box-shadow: 0 0 5px #F1F0F0;">
+    <div style="width:838px;height: 78px; padding-top: 10px;padding-left:28px; background-color:#F7F7F7;">
+        <a style="cursor:pointer; font-size:30px; color:#333;text-decoration: none; font-weight: bold;"
+           href="{$options->siteUrl}">{$options->title}</a><span
+            style="color:#999; font-size:14px;padding-left:20px;">{$options->description}</span>
+    </div>
+    <div style="padding:30px;">
+        <div style="height:50px; line-height:50px; font-size:16px; color:#9e9e9e;">您有一条新的评论动态:</div>
+        <div style="line-height:30px;  font-size:16px; margin-bottom:20px; text-indent: 2em;">
+            {$comment->text}
+        </div>
+        <div style="line-height:40px;  font-size:14px;">
+            <label style="color:#999;">评论人：</label>
+            <span style="color:#333;">{$comment->author}</span>
+        </div>
+        <div style="line-height:40px;  font-size:14px;">
+            <label style="color:#999;">评论地址：</label>
+            <a href="{$comment->permalink}" style="color:#333;">{$comment->permalink}</a>
+        </div>
+        <div style="line-height:40px;  font-size:14px;">
+            <label style="color:#999;">评论时间：</label>
+            <span style="color:#333;">{$commentAt}</span>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+HTML;
         return $content;
     }
 
