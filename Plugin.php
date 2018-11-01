@@ -190,6 +190,8 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
             if (empty($recipients)) return; // 没有收信人
             //Server settings
             $mail = new PHPMailer(true);
+            $mail->CharSet = PHPMailer::CHARSET_UTF8;
+            $mail->Encoding = PHPMailer::ENCODING_BASE64;
             $mail->isSMTP();
             $mail->Host = $comment2Mail->STMPHost; // SMTP 服务地址
             $mail->SMTPAuth = true; // 开启认证
