@@ -4,10 +4,12 @@
  * typecho 评论通过时发送邮件提醒
  * @package Comment2Mail
  * @author Hoe
- * @version 1.1.0
+ * @version 1.2.0
  * @link http://www.hoehub.com
  * version 1.0.1 博主回复别人时,不需要给博主发信
  * version 1.1.0 修改了邮件样式,邮件样式是utf8,避免邮件乱码
+ * version 1.1.1 邮件里显示评论人邮箱
+ * version 1.2.0 如果所有评论必须经过审核, 通知博主审核评论
  */
 
 require dirname(__FILE__) . '/PHPMailer/src/PHPMailer.php';
@@ -66,28 +68,28 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
         $form->addInput($STMPHost->addRule('required', _t('SMTP服务器地址必填!')));
 
         // SMTP用户名
-        $smtpUserName = new Typecho_Widget_Helper_Form_Element_Text('smtpUserName', NULL, NULL, _t('SMTP登录用户'), _t('SMTP登录用户名，一般为邮箱地址'));
-        $form->addInput($smtpUserName->addRule('required', _t('SMTP登录用户必填!')));
+        $SMTPUserName = new Typecho_Widget_Helper_Form_Element_Text('SMTPUserName', NULL, NULL, _t('SMTP登录用户'), _t('SMTP登录用户名，一般为邮箱地址'));
+        $form->addInput($SMTPUserName->addRule('required', _t('SMTP登录用户必填!')));
 
         // SMTP密码
-        $smtpPassword = new Typecho_Widget_Helper_Form_Element_Text('smtpPassword', NULL, NULL, _t('SMTP登录密码'), _t('为QQ邮箱以例: <a href="https://service.mail.qq.com/cgi-bin/help?subtype=1&&no=1001256&&id=28" target="_blank">查看</a>'));
-        $form->addInput($smtpPassword->addRule('required', _t('SMTP登录密码必填!')));
+        $SMTPPassword = new Typecho_Widget_Helper_Form_Element_Text('SMTPPassword', NULL, NULL, _t('SMTP登录密码'), _t('为QQ邮箱以例: <a href="https://service.mail.qq.com/cgi-bin/help?subtype=1&&no=1001256&&id=28" target="_blank">Q邮箱</a><a href="https://mailhelp.aliyun.com/freemail/detail.vm?knoId=6521875" target="_blank">阿里邮箱</a><a href="https://support.office.com/zh-cn/article/outlook-com-%E7%9A%84-pop%E3%80%81imap-%E5%92%8C-smtp-%E8%AE%BE%E7%BD%AE-d088b986-291d-42b8-9564-9c414e2aa040?ui=zh-CN&rs=zh-CN&ad=CN" target="_blank">Outlook邮箱</a>'));
+        $form->addInput($SMTPPassword->addRule('required', _t('SMTP登录密码必填!')));
 
         // 服务器安全模式
-        $smtpSecure = new Typecho_Widget_Helper_Form_Element_Radio('smtpSecure', array('' => _t('无安全加密'), 'ssl' => _t('SSL加密'), 'tls' => _t('TLS加密')), 'none', _t('SMTP加密模式'));
-        $form->addInput($smtpSecure);
+        $SMTPSecure = new Typecho_Widget_Helper_Form_Element_Radio('SMTPSecure', array('' => _t('无安全加密'), 'ssl' => _t('SSL加密'), 'tls' => _t('TLS加密')), 'none', _t('SMTP加密模式'));
+        $form->addInput($SMTPSecure);
 
         // SMTP server port
-        $smtpPort = new Typecho_Widget_Helper_Form_Element_Text('smtpPort', NULL, '25', _t('SMTP服务端口'), _t('默认25 SSL为465 TLS为587'));
-        $form->addInput($smtpPort);
+        $SMTPPort = new Typecho_Widget_Helper_Form_Element_Text('SMTPPort', NULL, '25', _t('SMTP服务端口'), _t('默认25 SSL为465 TLS为587'));
+        $form->addInput($SMTPPort);
 
         $layout = new Typecho_Widget_Helper_Layout();
         $layout->html(_t('<h3>邮件信息配置:</h3>'));
         $form->addItem($layout);
 
         // 发件邮箱
-        $from = new Typecho_Widget_Helper_Form_Element_Text('from', NULL, NULL, _t('发件邮箱'), _t('用于发送邮件的邮箱'));
-        $form->addInput($from->addRule('required', _t('发件邮箱必填!')));
+        $from = new Typecho_Widget_Helper_Form_Element_Text('from', NULL, NULL, _t('收发件邮箱'), _t('用于发送和接收邮件的邮箱'));
+        $form->addInput($from->addRule('required', _t('收发件邮箱必填!')));
         // 发件人姓名
         $fromName = new Typecho_Widget_Helper_Form_Element_Text('fromName', NULL, NULL, _t('发件人姓名'), _t('发件人姓名'));
         $form->addInput($fromName->addRule('required', _t('发件人姓名必填!')));
@@ -114,6 +116,30 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
     {
     }
 
+
+    /**
+     * @param $comment
+     * @return array
+     * @throws Typecho_Db_Exception
+     * 获取上级评论人
+     */
+    public static function getParent($comment)
+    {
+        $recipients = [];
+        $db = Typecho_Db::get();
+        $widget = new Widget_Abstract_Comments(new Typecho_Request(), new Typecho_Response());
+        // 查询
+        $select = $widget->select()->where('coid' . ' = ?', $comment->parent)->limit(1);
+        $parent = $db->fetchRow($select, [$widget, 'push']); // 获取上级评论对象
+        if ($parent && $parent['mail']) {
+            $recipients = [
+                'name' => $parent['author'],
+                'mail' => $parent['mail'],
+            ];
+        }
+        return $recipients;
+    }
+
     /**
      * @param $comment
      * @param Widget_Comments_Edit $edit
@@ -124,7 +150,11 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
      */
     public static function mark($comment, $edit, $status)
     {
-        $status == 'approved' && self::beforeSendMail($edit);
+        // 在后台标记评论状态为[approved 审核通过]时, 发信给上级评论人
+        if ($status == 'approved' && 0 < $edit->parent) {
+            $recipients[] = self::getParent($edit);
+            self::sendMail($edit, $recipients, '您有一条新的评论');
+        }
     }
 
 
@@ -136,42 +166,38 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
      */
     public static function finishComment($comment)
     {
-        $comment->status == 'approved' && self::beforeSendMail($comment);
-    }
-
-    /**
-     * @param $comment
-     * @throws Typecho_Db_Exception
-     * @throws Typecho_Plugin_Exception
-     * 发邮件前的一些操作
-     */
-    private static function beforeSendMail($comment)
-    {
-        $recipients = [];
-        if (0 < $comment->parent) {
-            $db = Typecho_Db::get();
-            $widget = new Widget_Abstract_Comments(new Typecho_Request(), new Typecho_Response(), NULL);
-            // 查询
-            $select = $widget->select()->where('coid' . ' = ?', $comment->parent)->limit(1);
-            $parent = $db->fetchRow($select, [$widget, 'push']); // 获取上级评论对象
-            if ($parent && $parent['mail']) {
-                $parentAuthor = [
-                    'name' => $parent['author'],
-                    'mail' => $parent['mail'],
+        $comment2Mail = Helper::options()->plugin('Comment2Mail');
+        $from = $comment2Mail->from; // 发件邮箱
+        $fromName = $comment2Mail->fromName; // 发件人
+        // 审核通过
+        if ($comment->status == 'approved') {
+            // 不需要发信给博主
+            if ($comment->authorId != $comment->ownerId && $comment->mail != $comment2Mail->from) {
+                $recipients[] = [
+                    'name' => $fromName,
+                    'mail' => $from,
                 ];
-                // 给上级评论人发邮件
-                $recipients[] = $parentAuthor;
             }
+            // 如果有上级
+            if (0 < $comment->parent) {
+                // 查询上级评论人
+                $recipients[] = self::getParent($comment);
+            }
+            self::sendMail($comment, $recipients, '您有一条新的评论');
+        } else {
+            // 如果所有评论必须经过审核, 通知博主审核评论
+            $recipients[] = ['name' => $fromName, 'mail' => $from];
+            self::sendMail($comment, $recipients, '您有一条新的待审核评论');
         }
-        self::sendMail($comment, $recipients);
     }
 
     /**
      * @param Widget_Comments_Edit|Widget_Feedback $comment
      * @param array $recipients
+     * @param $desc
      * @throws Typecho_Plugin_Exception
      */
-    private static function sendMail($comment, $recipients)
+    private static function sendMail($comment, $recipients, $desc)
     {
         try {
             // 获取系统配置选项
@@ -180,28 +206,19 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
             $comment2Mail = $options->plugin('Comment2Mail');
             $from = $comment2Mail->from; // 发件邮箱
             $fromName = $comment2Mail->fromName; // 发件人
-            // 不需要给自己发信
-            if ($comment->authorId != $comment->ownerId && $comment->mail != $comment2Mail->from) {
-                $recipients[] = [
-                    'name' => $fromName,
-                    'mail' => $from,
-                ];
-            }
             if (empty($recipients)) return; // 没有收信人
-            //Server settings
+            // Server settings
             $mail = new PHPMailer(true);
             $mail->CharSet = PHPMailer::CHARSET_UTF8;
             $mail->Encoding = PHPMailer::ENCODING_BASE64;
             $mail->isSMTP();
             $mail->Host = $comment2Mail->STMPHost; // SMTP 服务地址
             $mail->SMTPAuth = true; // 开启认证
-            $mail->Username = $comment2Mail->smtpUserName; // SMTP 用户名
-            $mail->Password = $comment2Mail->smtpPassword; // SMTP 密码
-            $mail->SMTPSecure = $comment2Mail->smtpSecure; // SMTP 加密类型 'ssl' or 'tls'.
-            $mail->Port = $comment2Mail->smtpPort; // SMTP 端口
+            $mail->Username = $comment2Mail->SMTPUserName; // SMTP 用户名
+            $mail->Password = $comment2Mail->SMTPPassword; // SMTP 密码
+            $mail->SMTPSecure = $comment2Mail->SMTPSecure; // SMTP 加密类型 'ssl' or 'tls'.
+            $mail->Port = $comment2Mail->SMTPPort; // SMTP 端口
 
-            $from = $comment2Mail->from; // 发件邮箱
-            $fromName = $comment2Mail->fromName; // 发件人
             $mail->setFrom($from, $fromName);
             foreach ($recipients as $recipient) {
                 $mail->addAddress($recipient['mail'], $recipient['name']); // 发件人
@@ -210,21 +227,21 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
 
             $mail->isHTML(); // 邮件为HTML格式
             // 邮件内容
-            $content = self::mailBody($comment, $options);
+            $content = self::mailBody($comment, $options, $desc);
             $mail->Body = $content;
             $mail->send();
 
             // 记录日志
             if ($comment2Mail->log) {
+                $at = date('Y-m-d H:i:s');
                 if ($mail->isError()) {
-                    $data = $mail->ErrorInfo; // 记录发信失败的日志
+                    $data = $at . ' ' . $mail->ErrorInfo; // 记录发信失败的日志
                 } else { // 记录发信成功的日志
                     $recipientNames = $recipientMails = '';
                     foreach ($recipients as $recipient) {
                         $recipientNames .= $recipient['name'] . ', ';
                         $recipientMails .= $recipient['mail'] . ', ';
                     }
-                    $at    = date('Y-m-d H:i:s');
                     $data  = PHP_EOL . $at .' 发送成功! ';
                     $data .= ' 发件人:'   . $fromName;
                     $data .= ' 发件邮箱:' . $from;
@@ -237,6 +254,8 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
 
         } catch (Exception $e) {
             $fileName = dirname(__FILE__) . '/log.txt';
+            $str = "\nerror time: ".date('Y-m-d H:i:s') . "\n";
+            file_put_contents($fileName, $str, FILE_APPEND);
             file_put_contents($fileName, $e, FILE_APPEND);
         }
     }
@@ -244,10 +263,11 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
     /**
      * @param $comment
      * @param $options
+     * @param $desc
      * @return string
      * 很朴素的邮件风格
      */
-    private static function mailBody($comment, $options)
+    private static function mailBody($comment, $options, $desc)
     {
         $commentAt = new Typecho_Date($comment->created);
         $commentAt = $commentAt->format('Y-m-d H:i:s');
@@ -265,13 +285,13 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
             style="color:#999; font-size:14px;padding-left:20px;">{$options->description}</span>
     </div>
     <div style="padding:30px;">
-        <div style="height:50px; line-height:50px; font-size:16px; color:#9e9e9e;">您有一条新的评论动态:</div>
+        <div style="height:50px; line-height:50px; font-size:16px; color:#9e9e9e;">{$desc}</div>
         <div style="line-height:30px;  font-size:16px; margin-bottom:20px; text-indent: 2em;">
             {$comment->text}
         </div>
         <div style="line-height:40px;  font-size:14px;">
             <label style="color:#999;">评论人：</label>
-            <span style="color:#333;">{$comment->author}</span>
+            <span style="color:#333;">{$comment->author} 邮箱: {$comment->mail}</span>
         </div>
         <div style="line-height:40px;  font-size:14px;">
             <label style="color:#999;">评论地址：</label>
