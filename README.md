@@ -1,9 +1,10 @@
 # typecho-Comment2Mail
 
 #### 项目介绍
-Typecho博客评论通过时发送邮件提醒
+typecho博客评论邮件提醒
 
 #### 更新说明
+ps 更新需重新启用并配置插件
 - version 1.2.0 如果所有评论必须经过审核, 通知博主审核评论
 - version 1.1.1 邮件里显示评论人邮箱
 - version 1.1.0 修改了邮件样式,邮件样式是utf8,避免邮件乱码
@@ -33,7 +34,7 @@ Typecho博客评论通过时发送邮件提醒
 #### 联系作者
 
 - Email:i@hoehub.com
-- 欢迎访问 [www.hoehub.com](www.hoehub.com) 一起学习讨论
+- 欢迎访问 [www.hoehub.com](http://www.hoehub.com) 一起学习讨论
 
 ### 许可证 License
 
