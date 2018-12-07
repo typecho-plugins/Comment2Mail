@@ -4,12 +4,13 @@
  * typecho 评论通过时发送邮件提醒
  * @package Comment2Mail
  * @author Hoe
- * @version 1.2.0
+ * @version 1.2.1
  * @link http://www.hoehub.com
  * version 1.0.1 博主回复别人时,不需要给博主发信
  * version 1.1.0 修改了邮件样式,邮件样式是utf8,避免邮件乱码
  * version 1.1.1 邮件里显示评论人邮箱
  * version 1.2.0 如果所有评论必须经过审核, 通知博主审核评论
+ * version 1.2.1 如果是自己回复自己评论的, 不接收邮件
  */
 
 require dirname(__FILE__) . '/PHPMailer/src/PHPMailer.php';
@@ -157,7 +158,18 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
     {
         // 在后台标记评论状态为[approved 审核通过]时, 发信给上级评论人
         if ($status == 'approved' && 0 < $edit->parent) {
-            $recipients[] = self::getParent($edit);
+            $parent = self::getParent($edit);
+            // 如果自己回复自己的评论, 不做任何操作
+            if ($parent['mail'] == $edit->mail) {
+                return;
+            }
+            $comment2Mail = Helper::options()->plugin('Comment2Mail');
+            $from = $comment2Mail->from; // 发件邮箱
+            // 如果上级是博主, 不做任何操作
+            if ($parent['mail'] == $from) {
+                return;
+            }
+            $recipients[] = $parent;
             self::sendMail($edit, $recipients, '您有一条新的评论');
         }
     }
@@ -174,6 +186,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
         $comment2Mail = Helper::options()->plugin('Comment2Mail');
         $from = $comment2Mail->from; // 发件邮箱
         $fromName = $comment2Mail->fromName; // 发件人
+        $recipients = [];
         // 审核通过
         if ($comment->status == 'approved') {
             // 不需要发信给博主
@@ -184,9 +197,13 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
                 ];
             }
             // 如果有上级
-            if (0 < $comment->parent) {
+            if ($comment->parent > 0) {
                 // 查询上级评论人
-                $recipients[] = self::getParent($comment);
+                $parent = self::getParent($comment);
+                // 如果上级是博主和自己回复自己, 不需要发信
+                if ($parent['mail'] != $from && $parent['mail'] != $comment->mail) {
+                    $recipients[] = $parent;
+                }
             }
             self::sendMail($comment, $recipients, '您有一条新的评论');
         } else {
@@ -204,6 +221,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
      */
     private static function sendMail($comment, $recipients, $desc)
     {
+        if (empty($recipients)) return; // 没有收信人
         try {
             // 获取系统配置选项
             $options = Helper::options();
@@ -211,7 +229,6 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
             $comment2Mail = $options->plugin('Comment2Mail');
             $from = $comment2Mail->from; // 发件邮箱
             $fromName = $comment2Mail->fromName; // 发件人
-            if (empty($recipients)) return; // 没有收信人
             // Server settings
             $mail = new PHPMailer(true);
             $mail->CharSet = PHPMailer::CHARSET_UTF8;
