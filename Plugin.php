@@ -293,6 +293,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
     {
         $commentAt = new Typecho_Date($comment->created);
         $commentAt = $commentAt->format('Y-m-d H:i:s');
+        $commentText = htmlspecialchars($comment->text);
         $content = <<<HTML
 <!DOCTYPE html>
 <html>
@@ -309,7 +310,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
     <div style="padding:30px;">
         <div style="height:50px; line-height:50px; font-size:16px; color:#9e9e9e;">{$desc}</div>
         <div style="line-height:30px;  font-size:16px; margin-bottom:20px; text-indent: 2em;">
-            {$comment->text}
+            {$commentText}
         </div>
         <div style="line-height:40px;  font-size:14px;">
             <label style="color:#999;">评论人：</label>
