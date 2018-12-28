@@ -1,9 +1,11 @@
 # typecho-Comment2Mail
 
 #### 项目介绍
+
 typecho博客评论邮件提醒
 
 #### 更新说明
+
 ps 更新需重新启用并配置插件
 - version 1.2.1 如果是自己回复自己评论的, 不接收邮件
 - version 1.2.0 如果所有评论必须经过审核, 通知博主审核评论
@@ -11,19 +13,20 @@ ps 更新需重新启用并配置插件
 - version 1.1.0 修改了邮件样式,邮件样式是utf8,避免邮件乱码
 - version 1.0.1 博主回复别人时,不需要给博主发信
 
+#### 安装教程
+
+- 进入 `/usr/plugins` 目录, `git clone https://gitee.com/HoeXhe/typecho-Comment2Mail.git` (不推荐直接下载, 有小伙伴反馈从码云下载的zip无法解压)
+- 文件夹名改为`Comment2Mail`
+- 登录管理后台，激活插件
+- 配置插件 填写SMTP参数
+
+
 #### 软件架构
+
 - `typecho`版本为`0.8 (10.8.15)`以上
 - `php: >=5.5.0`
 - 如果启用SMTP加密模式`PHP`需要打开`openssl`扩展
 - 邮件服务基于[`PHPMailer`](https://github.com/PHPMailer/PHPMailer/ )
-
-
-#### 安装教程
-
-- 下载本插件，解压放到`/usr/plugins/`目录中
-- 文件夹名改为`Comment2Mail`
-- 登录管理后台，激活插件
-- 配置插件 填写SMTP参数
 
 #### 参与贡献
 
