@@ -4,13 +4,14 @@
  * typecho 评论通过时发送邮件提醒
  * @package Comment2Mail
  * @author Hoe
- * @version 1.2.1
+ * @version 1.3.0
  * @link http://www.hoehub.com
  * version 1.0.1 博主回复别人时,不需要给博主发信
  * version 1.1.0 修改了邮件样式,邮件样式是utf8,避免邮件乱码
  * version 1.1.1 邮件里显示评论人邮箱
  * version 1.2.0 如果所有评论必须经过审核, 通知博主审核评论
  * version 1.2.1 如果是自己回复自己评论的, 不接收邮件
+ * version 1.3.0 新增测试功能
  */
 
 require dirname(__FILE__) . '/PHPMailer/src/PHPMailer.php';
@@ -33,6 +34,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
         Typecho_Plugin::factory('Widget_Feedback')->finishComment = [__CLASS__, 'finishComment']; // 前台提交评论完成接口
         Typecho_Plugin::factory('Widget_Comments_Edit')->finishComment = [__CLASS__, 'finishComment']; // 后台操作评论完成接口
         Typecho_Plugin::factory('Widget_Comments_Edit')->mark = [__CLASS__, 'mark']; // 后台标记评论状态完成接口
+        Helper::addRoute('comment2mail_test', '/comment2mail/test', 'Comment2Mail_Action', 'action');
         return _t('请配置邮箱SMTP选项!');
     }
 
@@ -45,6 +47,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
      */
     public static function deactivate()
     {
+        Helper::removeRoute('comment2mail_test');
     }
 
     /**
@@ -57,7 +60,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
     public static function config(Typecho_Widget_Helper_Form $form)
     {
         // 记录log
-        $log = new Typecho_Widget_Helper_Form_Element_Checkbox('log', ['log' => _t('记录日志')], 'log', _t('记录日志'), _t('启用后将当前目录生成一个log.txt 注:目录需有写入权限'));
+        $log = new Typecho_Widget_Helper_Form_Element_Checkbox('log', ['log' => _t('记录日志')], '', _t('记录日志'), _t('启用后将当前目录生成一个log.txt 注:目录需有写入权限'));
         $form->addInput($log);
 
         $layout = new Typecho_Widget_Helper_Layout();
@@ -99,6 +102,40 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
         // 发件人姓名
         $fromName = new Typecho_Widget_Helper_Form_Element_Text('fromName', NULL, NULL, _t('发件人姓名'), _t('发件人姓名'));
         $form->addInput($fromName->addRule('required', _t('发件人姓名必填!')));
+
+        // 测试按钮
+        $url = Helper::security()->getIndex('/comment2mail/test');
+        $testBtnHtml = <<<HTML
+<script>
+    function testMailConf() {
+        $(".response").html("请稍等……");
+        const STMPHost     = $("input[name='STMPHost']").val();
+        const SMTPUserName = $("input[name='SMTPUserName']").val();
+        const SMTPPassword = $("input[name='SMTPPassword']").val();
+        const SMTPSecure   = $("input[name='SMTPSecure']").val();
+        const SMTPPort     = $("input[name='SMTPPort']").val();
+        const fromMail     = $("input[name='from']").val();
+        const data = {
+            STMPHost: STMPHost,
+            SMTPUserName: SMTPUserName,
+            SMTPPassword: SMTPPassword,
+            SMTPSecure: SMTPSecure,
+            SMTPPort: SMTPPort,
+            fromMail: fromMail,
+        };
+        $.get("{$url}", data, function(response) {
+            $(".response").html("").html(response);
+        });
+        
+    }        
+</script>
+<button class="btn btn-warn" onclick="testMailConf();return false;">测试设置</button>
+<pre class="response"></pre>
+HTML;
+
+        $testBtn = new Typecho_Widget_Helper_Layout();
+        $testBtn->html(_t($testBtnHtml));
+        $form->addItem($testBtn);
     }
 
     /**
