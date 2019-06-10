@@ -112,7 +112,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
         const STMPHost     = $("input[name='STMPHost']").val();
         const SMTPUserName = $("input[name='SMTPUserName']").val();
         const SMTPPassword = $("input[name='SMTPPassword']").val();
-        const SMTPSecure   = $("input[name='SMTPSecure']").val();
+        const SMTPSecure   = $("input[name='SMTPSecure']:checked").val();
         const SMTPPort     = $("input[name='SMTPPort']").val();
         const fromMail     = $("input[name='from']").val();
         const data = {
