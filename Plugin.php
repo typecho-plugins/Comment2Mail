@@ -342,32 +342,31 @@ HTML;
 <head>
     <meta charset="utf-8">
 </head>
-<body style="width:100%;height:800px;background-color:#EEF3FA; font-size:14px;font-family:Microsoft YaHei;">
-    <div style="margin:100px auto;background-color:#fff;  width:866px; border:1px solid #F1F0F0;box-shadow: 0 0 5px #F1F0F0;">
-    <div style="width:838px;height: 78px; padding-top: 10px;padding-left:28px; background-color:#F7F7F7;">
-        <a style="cursor:pointer; font-size:30px; color:#333;text-decoration: none; font-weight: bold;"
-           href="{$options->siteUrl}">{$options->title}</a><span
-            style="color:#999; font-size:14px;padding-left:20px;">{$options->description}</span>
-    </div>
-    <div style="padding:30px;">
-        <div style="height:50px; line-height:50px; font-size:16px; color:#9e9e9e;">{$desc}</div>
-        <div style="line-height:30px;  font-size:16px; margin-bottom:20px; text-indent: 2em;">
-            {$commentText}
-        </div>
-        <div style="line-height:40px;  font-size:14px;">
-            <label style="color:#999;">评论人：</label>
-            <span style="color:#333;">{$comment->author} 邮箱: {$comment->mail}</span>
-        </div>
-        <div style="line-height:40px;  font-size:14px;">
-            <label style="color:#999;">评论地址：</label>
-            <a href="{$comment->permalink}" style="color:#333;">{$comment->permalink}</a>
-        </div>
-        <div style="line-height:40px;  font-size:14px;">
-            <label style="color:#999;">评论时间：</label>
-            <span style="color:#333;">{$commentAt}</span>
-        </div>
-    </div>
-</div>
+<body style="background-color:#EEF3FA; font-size:14px;font-family:Microsoft YaHei;">
+    <div style="margin:50px auto;background-color:#fff;width:700px;box-shadow: 0 0 10px #00000030;border-radius: 20px;overflow: hidden;">
+		<div style="height: 70px;padding-left:28px;background-color: #37aded;box-shadow: 0 0 20px 0 #37aded;">
+			<a style="cursor:pointer;font-size:28px;color:#fff;text-decoration:none;font-weight:bold;line-height:70px;" href="{$options->siteUrl}">{$options->title}</a>
+			<span style="color:#fff;font-size:16px;padding-left:20px;">{$options->description}</span>
+		</div>
+		<div style="padding:30px;">
+			<div style="height:50px;line-height:50px;font-size:16px;color:#9e9e9e;">{$desc}</div>
+			<div style="line-height:30px;font-size:16px;margin-bottom:20px;text-indent:2em;">
+				{$commentText}
+			</div>
+			<div style="line-height:40px;font-size:14px;">
+				<label style="color:#999;">评论人：</label>
+				<span style="color:#333;">{$comment->author}&nbsp;&nbsp;邮箱：{$comment->mail}</span>
+			</div>
+			<div style="line-height:40px;font-size:14px;">
+				<label style="color:#999;">评论地址：</label>
+				<a href="{$comment->permalink}" style="color:#333;">{$comment->permalink}</a>
+			</div>
+			<div style="line-height:40px;font-size:14px;">
+				<label style="color:#999;">评论时间：</label>
+				<span style="color:#333;">{$commentAt}</span>
+			</div>
+		</div>
+	</div>
 </body>
 </html>
 HTML;
