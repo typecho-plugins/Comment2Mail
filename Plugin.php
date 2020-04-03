@@ -97,12 +97,14 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
         $form->addItem($layout);
 
         // 发件邮箱
-        $from = new Typecho_Widget_Helper_Form_Element_Text('from', NULL, NULL, _t('收发件邮箱'), _t('用于发送和接收邮件的邮箱'));
-        $form->addInput($from->addRule('required', _t('收发件邮箱必填!')));
+        $from = new Typecho_Widget_Helper_Form_Element_Text('from', NULL, NULL, _t('发件邮箱'), _t('用于发送邮件的邮箱'));
+        $form->addInput($from->addRule('required', _t('发件邮箱必填!')));
         // 发件人姓名
         $fromName = new Typecho_Widget_Helper_Form_Element_Text('fromName', NULL, NULL, _t('发件人姓名'), _t('发件人姓名'));
         $form->addInput($fromName->addRule('required', _t('发件人姓名必填!')));
-
+        // 博主(收件)邮箱
+        $autherMail = new Typecho_Widget_Helper_Form_Element_Text('autherMail', NULL, NULL, _t('博主(收件)邮箱'), _t('用于接收评论通知的邮箱'));
+        $form->addInput($autherMail->addRule('required', _t('博主(收件)邮箱必填!')));
         // 测试按钮
         $url = Helper::security()->getIndex('/comment2mail/test');
         $testBtnHtml = <<<HTML
@@ -115,6 +117,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
         const SMTPSecure   = $("input[name='SMTPSecure']:checked").val();
         const SMTPPort     = $("input[name='SMTPPort']").val();
         const fromMail     = $("input[name='from']").val();
+        const autherMail   = $("input[name='autherMail']").val();
         const data = {
             STMPHost: STMPHost,
             SMTPUserName: SMTPUserName,
@@ -122,6 +125,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
             SMTPSecure: SMTPSecure,
             SMTPPort: SMTPPort,
             fromMail: fromMail,
+            autherMail: autherMail,
         };
         $.get("{$url}", data, function(response) {
             $(".response").html("").html(response);
@@ -201,7 +205,7 @@ HTML;
                 return;
             }
             $comment2Mail = Helper::options()->plugin('Comment2Mail');
-            $from = $comment2Mail->from; // 发件邮箱
+            $from = $comment2Mail->autherMail; // 博主(收件)邮箱
             // 如果上级是博主, 不做任何操作
             if ($parent['mail'] == $from) {
                 return;
@@ -223,14 +227,15 @@ HTML;
         $comment2Mail = Helper::options()->plugin('Comment2Mail');
         $from = $comment2Mail->from; // 发件邮箱
         $fromName = $comment2Mail->fromName; // 发件人
+        $autherMail = $comment2Mail->autherMail; // 博主邮箱
         $recipients = [];
         // 审核通过
         if ($comment->status == 'approved') {
             // 不需要发信给博主
-            if ($comment->authorId != $comment->ownerId && $comment->mail != $comment2Mail->from) {
+            if ($comment->authorId != $comment->ownerId && $comment->mail != $autherMail) {
                 $recipients[] = [
                     'name' => $fromName,
-                    'mail' => $from,
+                    'mail' => $autherMail,
                 ];
             }
             // 如果有上级
@@ -238,14 +243,14 @@ HTML;
                 // 查询上级评论人
                 $parent = self::getParent($comment);
                 // 如果上级是博主和自己回复自己, 不需要发信
-                if ($parent['mail'] != $from && $parent['mail'] != $comment->mail) {
+                if ($parent['mail'] != $autherMail && $parent['mail'] != $comment->mail) {
                     $recipients[] = $parent;
                 }
             }
             self::sendMail($comment, $recipients, '您有一条新的评论');
         } else {
             // 如果所有评论必须经过审核, 通知博主审核评论
-            $recipients[] = ['name' => $fromName, 'mail' => $from];
+            $recipients[] = ['name' => $fromName, 'mail' => $autherMail];
             self::sendMail($comment, $recipients, '您有一条新的待审核评论');
         }
     }
@@ -280,7 +285,7 @@ HTML;
 
             $mail->setFrom($from, $fromName);
             foreach ($recipients as $recipient) {
-                $mail->addAddress($recipient['mail'], $recipient['name']); // 发件人
+                $mail->addAddress($recipient['mail'], $recipient['name']); // 添加收件人
             }
             $mail->Subject = '来自[' . $options->title . ']站点的新消息';
 
