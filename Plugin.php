@@ -3,15 +3,16 @@
 /**
  * typecho 评论通过时发送邮件提醒
  * @package Comment2Mail
- * @author Hoe
- * @version 1.3.0
- * @link http://www.hoehub.com
- * version 1.0.1 博主回复别人时,不需要给博主发信
- * version 1.1.0 修改了邮件样式,邮件样式是utf8,避免邮件乱码
- * version 1.1.1 邮件里显示评论人邮箱
- * version 1.2.0 如果所有评论必须经过审核, 通知博主审核评论
- * version 1.2.1 如果是自己回复自己评论的, 不接收邮件
- * version 1.3.0 新增测试功能
+ * @author Hoe, h3110w0r1d
+ * @version 1.3.1
+ * @link https://github.com/typecho-plugins/Comment2Mail
+ * version 1.0.1 博主回复别人时,不需要给博主发信 by Hoe
+ * version 1.1.0 修改了邮件样式,邮件样式是utf8,避免邮件乱码 by Hoe
+ * version 1.1.1 邮件里显示评论人邮箱 by Hoe
+ * version 1.2.0 如果所有评论必须经过审核, 通知博主审核评论 by Hoe
+ * version 1.2.1 如果是自己回复自己评论的, 不接收邮件 by Hoe
+ * version 1.3.0 新增测试功能 by Hoe
+ * version 1.3.1 添加收件邮箱选项，解决发信邮箱和博主邮箱不同时的问题 by h3110w0r1d
  */
 
 require dirname(__FILE__) . '/PHPMailer/src/PHPMailer.php';
@@ -35,7 +36,7 @@ class Comment2Mail_Plugin implements Typecho_Plugin_Interface
         Typecho_Plugin::factory('Widget_Comments_Edit')->finishComment = [__CLASS__, 'finishComment']; // 后台操作评论完成接口
         Typecho_Plugin::factory('Widget_Comments_Edit')->mark = [__CLASS__, 'mark']; // 后台标记评论状态完成接口
         Helper::addRoute('comment2mail_test', '/comment2mail/test', 'Comment2Mail_Action', 'action');
-        return _t('请配置邮箱SMTP选项!');
+        return _t('请前往设置页面，配置邮箱SMTP选项!');
     }
 
     /**
