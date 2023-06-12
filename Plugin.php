@@ -13,6 +13,7 @@
  * version 1.2.1 如果是自己回复自己评论的, 不接收邮件 by Hoe
  * version 1.3.0 新增测试功能 by Hoe
  * version 1.3.1 添加收件邮箱选项，解决发信邮箱和博主邮箱不同时的问题 by h3110w0r1d
+ * version 1.3.2 修复新版本 Typecho 报错“must be of type Typecho\Widget\Request, Typecho\Request given”的问题，根据 https://github.com/typecho/typecho/issues/1192 修复 by Hsiao-Feng
  */
 
 require dirname(__FILE__) . '/PHPMailer/src/PHPMailer.php';
@@ -175,7 +176,7 @@ HTML;
     {
         $recipients = [];
         $db = Typecho_Db::get();
-        $widget = new Widget_Abstract_Comments(new Typecho_Request(), new Typecho_Response());
+        $widget = Widget_Base_Comments::alloc();
         // 查询
         $select = $widget->select()->where('coid' . ' = ?', $comment->parent)->limit(1);
         $parent = $db->fetchRow($select, [$widget, 'push']); // 获取上级评论对象
